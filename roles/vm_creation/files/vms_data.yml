@@ -1,9 +1,0 @@
-vms:
-  - vmid: 141
-    name: "vm-test-1"
-    memory: 2048
-    cores: 2
-    sockets: 1
-    storage: "legumes"
-    iso: "local:iso/ubuntu-24.04-live-server-amd64"
-    password: "Caca1234*"

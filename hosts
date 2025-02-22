@@ -1,0 +1,9 @@
+[pvenodes]
+proxmox ansible_host=192.168.1.45
+proxmox ansible_python_interpreter=/usr/bin/python3
+
+[raspy]
+raspy ansible_host=192.168.1.82 ansible_user=kiwi
+
+[localhost]
+localhost ansible_python_interpreter=/usr/bin/python3

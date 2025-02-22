@@ -1,0 +1,9 @@
+[Interface]
+Address = {{ ip_wireguard_server }}/24
+SaveConfig = true
+ListenPort = {{ port_wireguard }}
+PrivateKey = {{ private_key_wg_server['content'] | b64decode  }}
+
+[Peer]
+PublicKey = {{ public_key_wg_client }}
+AllowedIPs = {{ ip_client_cpl }}/32

@@ -1,0 +1,39 @@
+---
+- name: Configure SSH key-based authentication
+  hosts: raspy
+  gather_facts: no
+  vars:
+    ssh_key_path: "~/.ssh/id_rsa.pub"
+  tasks:
+
+    - name: Ensure SSH key pair exists
+      command: "ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ''"
+      args:
+        creates: "~/.ssh/id_rsa"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fetch public key from control machine
+      slurp:
+        src: "{{ ssh_key_path }}"
+      delegate_to: localhost
+      run_once: true
+      register: ssh_pub_key
+
+    - name: Ensure .ssh directory exists on remote host
+      file:
+        path: "~/.ssh"
+        state: directory
+        mode: '0700'
+
+    - name: Add public key to authorized_keys
+      lineinfile:
+        path: "~/.ssh/authorized_keys"
+        line: "{{ ssh_pub_key['content'] | b64decode }}"
+        create: yes
+        mode: '0600'
+
+    - name: Ensure correct permissions on authorized_keys
+      file:
+        path: "~/.ssh/authorized_keys"
+        mode: '0600'

@@ -1,0 +1,8 @@
+---
+- name: Déploiement et configuration de wireguard
+  hosts: raspy
+  become: true
+  gather_facts: no
+
+  roles:
+    - wireguard_rasp

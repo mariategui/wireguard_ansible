@@ -51,6 +51,11 @@
       "{{ clepublic }}
   when: not wg_public_key.stat.exists
 
+- name: Copy public key file to local machine
+  fetch:
+    src: /etc/wireguard/wg-public.key
+    dest: /tmp/wg-public.key
+
 
   ## Conf file
 
@@ -69,8 +74,6 @@
 - name: Show wireguard interface status
   shell: wg show wg0 | grep wg0
   register: wg_status
-  failed_when: wg_status.rc != 0  # Échec si wg0 n'est pas trouvé
-  ignore_errors: yes
 
 - name: Afficher le statut de wg0
   debug:
@@ -79,7 +82,7 @@
 - name: Start wireguard interface
   command:
     cmd: wg-quick up wg0
-  when: wg_status.stdout == "interface: wg0"
+  when: '"interface: wg0" not in wg_status.stdout'
 
 - name: Start Wireguard service
   service:
@@ -87,70 +90,70 @@
     state: started
     enabled: true
 
-#   ## Enable IP Forwarding and Masquerade
+  ## Enable IP Forwarding and Masquerade
 
-# - name: Activate ip forwarding
-#   lineinfile:
-#     path: /etc/sysctl.conf
-#     line: net.ipv4.ip_forward = 1
-#     state: present
+- name: Activate ip forwarding
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: net.ipv4.ip_forward = 1
+    state: present
 
-# - name: UFW - Allow SSH TCP
-#   ufw:
-#     rule: allow
-#     port: '22'
-#     proto: tcp
+- name: UFW - Allow SSH TCP
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
 
-# - name: UFW - Allow Wireguard UDP
-#   ufw:
-#     rule: allow
-#     port: '51820'
-#     proto: udp
+- name: UFW - Allow Wireguard UDP
+  ufw:
+    rule: allow
+    port: '51820'
+    proto: udp
 
-# - name: Vérifier si l'IP Masquerade est déjà présente
-#   command: grep -q "-A POSTROUTING -o ens192 -j MASQUERADE" /etc/ufw/before.rules
-#   register: ip_masquerade_check
-#   changed_when: false
-#   failed_when: false
+- name: Vérifier si l'IP Masquerade est déjà présente
+  command: grep -q "-A POSTROUTING -o ens192 -j MASQUERADE" /etc/ufw/before.rules
+  register: ip_masquerade_check
+  changed_when: false
+  failed_when: false
 
-# - name: Activer l'IP Masquerade dans before.rules
-#   blockinfile:
-#     path: /etc/ufw/before.rules
-#     block: |
-#       # NAT - IP masquerade
-#       *nat
-#       :POSTROUTING ACCEPT [0:0]
-#       -A POSTROUTING -o ens192 -j MASQUERADE
+- name: Activer l'IP Masquerade dans before.rules
+  blockinfile:
+    path: /etc/ufw/before.rules
+    block: |
+      # NAT - IP masquerade
+      *nat
+      :POSTROUTING ACCEPT [0:0]
+      -A POSTROUTING -o ens192 -j MASQUERADE
       
-#       # End each table with the 'COMMIT' line or these rules won't be processed
-#       COMMIT
-#     marker: "# {mark} UFW Masquerade Configuration"
-#   when: ip_masquerade_check.rc != 0
+      # End each table with the 'COMMIT' line or these rules won't be processed
+      COMMIT
+    marker: "# {mark} UFW Masquerade Configuration"
+  when: ip_masquerade_check.rc != 0
 
-# - name: Vérifier si les règles de forwarding sont déjà présentes
-#   command: grep -q "-A ufw-before-forward -s {{ ip_reseau_domicile }}/24 -j ACCEPT" /etc/ufw/before.rules
-#   register: forwarding_check
-#   changed_when: false
-#   failed_when: false
+- name: Vérifier si les règles de forwarding sont déjà présentes
+  command: grep -q "-A ufw-before-forward -s {{ ip_reseau_domicile }}/24 -j ACCEPT" /etc/ufw/before.rules
+  register: forwarding_check
+  changed_when: false
+  failed_when: false
 
-# - name: Ajouter règles de forwarding pour les réseaux d'entreprise
-#   blockinfile:
-#     path: /etc/ufw/before.rules
-#     insertafter: "# ok icmp code for FORWARD"
-#     block: |
-#       # Autoriser le forwarding pour le réseau distant de confiance
-#       -A ufw-before-forward -s "{{ ip_reseau_domicile }}/24" -j ACCEPT
-#       -A ufw-before-forward -d "{{ ip_reseau_domicile }}/24" -j ACCEPT
-#       -A ufw-before-forward -s "{{ ip_reseau_wireguard }}/24" -j ACCEPT
-#       -A ufw-before-forward -d "{{ ip_reseau_wireguard }}/24" -j ACCEPT
-#     marker: "# {mark} UFW Forwarding Configuration"
-#   when: forwarding_check.rc != 0
+- name: Ajouter règles de forwarding pour les réseaux d'entreprise
+  blockinfile:
+    path: /etc/ufw/before.rules
+    insertafter: "# ok icmp code for FORWARD"
+    block: |
+      # Autoriser le forwarding pour le réseau distant de confiance
+      -A ufw-before-forward -s "{{ ip_reseau_domicile }}/24" -j ACCEPT
+      -A ufw-before-forward -d "{{ ip_reseau_domicile }}/24" -j ACCEPT
+      -A ufw-before-forward -s "{{ ip_reseau_wireguard }}/24" -j ACCEPT
+      -A ufw-before-forward -d "{{ ip_reseau_wireguard }}/24" -j ACCEPT
+    marker: "# {mark} UFW Forwarding Configuration"
+  when: forwarding_check.rc != 0
 
-# - name: Activer UFW
-#   ufw:
-#     state: enabled
+- name: Activer UFW
+  ufw:
+    state: enabled
 
-# - name: Redémarrer UFW
-#   systemd:
-#     name: ufw
-#     state: restarted
+- name: Redémarrer UFW
+  systemd:
+    name: ufw
+    state: restarted
